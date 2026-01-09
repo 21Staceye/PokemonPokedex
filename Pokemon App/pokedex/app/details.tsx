@@ -1,16 +1,20 @@
 import { useLocalSearchParams } from "expo-router/build/hooks";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from "react-native";
-
+import { ActivityIndicator, Dimensions, Image, ScrollView, StyleSheet, Text, View } from "react-native";
+const {width, height} = Dimensions.get('window');
 interface PokemonDetails {
   name: string;
   sprites: {
     front_default: string;
     back_default: string;
+    front_shiny: string;
+    back_shiny: string;
   };
   types: Array<{ type: { name: string } }>;
   height: number;
   weight: number;
+  id: number;
+
 }
 
 export default function Details() {
@@ -64,9 +68,20 @@ export default function Details() {
       padding: 16,
     }}
     >
-       <Text style={styles.name}>{pokemon.name}</Text>
+       <Text style={styles.name}>#{pokemon.id} {pokemon.name} </Text>
+       <View style={styles.textContainer}><Text style={styles.shiny}>Shiny Form:</Text>
+       <Text style={styles.normal}>Normal Form:</Text>
+       </View>
        
        <View style={styles.imageContainer}>
+        <Image 
+        source={{uri:pokemon.sprites.front_shiny}}
+        style={styles.image}
+        />
+         <Image 
+        source={{uri:pokemon.sprites.back_shiny}}
+        style={styles.image}
+        />
          <Image 
            source={{ uri: pokemon.sprites.front_default }} 
            style={styles.image} 
@@ -75,6 +90,7 @@ export default function Details() {
            source={{ uri: pokemon.sprites.back_default }} 
            style={styles.image} 
          />
+        
        </View>
 
        <View style={styles.infoBox}>
@@ -93,6 +109,7 @@ export default function Details() {
          <Text style={styles.label}>Weight:</Text>
          <Text style={styles.value}>{pokemon.weight / 10} kg</Text>
        </View>
+      
     </ScrollView>
   );
 }
@@ -113,11 +130,26 @@ const styles = StyleSheet.create({
   imageContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+  },
+   textContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'flex-start',
+  },
+  shiny: {
+     textAlign:'left',
+     fontWeight:'bold',
+     
+  },
+  normal: {
+    textAlign:'center',
+     fontWeight:'bold',
   },
   image: {
-    width: 150,
-    height: 150,
+    height: height * 0.2,
+    width:width * 0.2,
+    resizeMode: 'contain',
   },
   infoBox: {
     backgroundColor: '#f0f0f0',

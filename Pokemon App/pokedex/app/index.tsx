@@ -80,7 +80,7 @@ export default function Index() {
     }
   }
 
-  // Toggle caught status (using only React state for now)
+  // Toggle caught status 
   function toggleCaught(pokemonName: string, type: 'normal' | 'shiny') {
     setCaughtPokemon(prev => {
       const updated = {
@@ -244,7 +244,7 @@ export default function Index() {
           onPress={() => setShowChecklist(!showChecklist)}
         >
           <Text style={styles.toggleButtonText}>
-            {showChecklist ? '📊 Hide Checklist' : '📊 Show Checklist'}
+            {showChecklist ? ' Hide Checklist' : ' Show Checklist'}
           </Text>
         </TouchableOpacity>
       </View>

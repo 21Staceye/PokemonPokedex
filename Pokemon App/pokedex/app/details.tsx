@@ -34,7 +34,7 @@ export default function Details() {
     const data = await response.json(); // Added () here
     
     setPokemon(data);
-    console.log(data);
+    
    }
    catch(error){
      console.log(error);

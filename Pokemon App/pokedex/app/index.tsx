@@ -1,11 +1,13 @@
 import { Link } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 interface Pokemon {
   name: string;
   image: string;
   imageBack: string;
+  shinyImage: string;
+  shinyImageBack: string;
   types: PokemonTypes[];
 }
 
@@ -13,6 +15,13 @@ interface PokemonTypes {
   type: {
     name: string;
     url: string;
+  }
+}
+
+interface CaughtPokemon {
+  [key: string]: {
+    normal: boolean;
+    shiny: boolean;
   }
 }
 
@@ -47,19 +56,70 @@ export default function Index() {
   const [hasMore, setHasMore] = useState(true);
   const [searchResults, setSearchResults] = useState<Pokemon[]>([]);
   const [searching, setSearching] = useState(false);
+  const [caughtPokemon, setCaughtPokemon] = useState<CaughtPokemon>({});
+  const [showShiny, setShowShiny] = useState<{[key: string]: boolean}>({});
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [showChecklist, setShowChecklist] = useState(true);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [allPokemonNames, setAllPokemonNames] = useState<string[]>([]);
 
   useEffect(() => {
     fetchPoke(0);
+    fetchAllPokemonNames();
   }, []);
+
+  // Fetch all Pokémon names for search suggestions
+  async function fetchAllPokemonNames() {
+    try {
+      const response = await fetch('https://pokeapi.co/api/v2/pokemon?limit=10000');
+      const data = await response.json();
+      const names = data.results.map((p: any) => p.name);
+      setAllPokemonNames(names);
+    } catch (error) {
+      console.log('Error fetching pokemon names:', error);
+    }
+  }
+
+  // Toggle caught status (using only React state for now)
+  function toggleCaught(pokemonName: string, type: 'normal' | 'shiny') {
+    setCaughtPokemon(prev => {
+      const updated = {
+        ...prev,
+        [pokemonName]: {
+          normal: prev[pokemonName]?.normal || false,
+          shiny: prev[pokemonName]?.shiny || false,
+          [type]: !(prev[pokemonName]?.[type] || false)
+        }
+      };
+      return updated;
+    });
+  }
+
+  // Toggle shiny display
+  function toggleShiny(pokemonName: string) {
+    setShowShiny(prev => ({
+      ...prev,
+      [pokemonName]: !prev[pokemonName]
+    }));
+  }
 
   async function searchPokemon(query: string) {
     if (!query.trim()) {
       setSearchResults([]);
       setSearching(false);
+      setSuggestions([]);
       return;
     }
 
+    // Get suggestions from ALL Pokémon names
+    const matches = allPokemonNames
+      .filter(name => name.toLowerCase().includes(query.toLowerCase()))
+      .slice(0, 8);
+    setSuggestions(matches);
+
     setSearching(true);
+    
+    // Search API for exact match
     try {
       const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${query.toLowerCase()}`);
       
@@ -69,6 +129,8 @@ export default function Index() {
           name: details.name,
           image: details.sprites.front_default,
           imageBack: details.sprites.back_default,
+          shinyImage: details.sprites.front_shiny,
+          shinyImageBack: details.sprites.back_shiny,
           types: details.types,
         };
         setSearchResults([pokemon]);
@@ -78,6 +140,8 @@ export default function Index() {
     } catch (error) {
       console.log(error);
       setSearchResults([]);
+    } finally {
+      setSearching(false);
     }
   }
 
@@ -85,15 +149,22 @@ export default function Index() {
     setSearchQuery(text);
     
     if (text.trim()) {
-      // Debounce search
-      const timeoutId = setTimeout(() => {
-        searchPokemon(text);
-      }, 500);
-      return () => clearTimeout(timeoutId);
+      // Show suggestions immediately from ALL Pokémon
+      const matches = allPokemonNames
+        .filter(name => name.toLowerCase().includes(text.toLowerCase()))
+        .slice(0, 8);
+      setSuggestions(matches);
     } else {
       setSearchResults([]);
       setSearching(false);
+      setSuggestions([]);
     }
+  };
+
+  const selectSuggestion = (name: string) => {
+    setSearchQuery(name);
+    setSuggestions([]);
+    searchPokemon(name);
   };
 
   async function fetchPoke(currentOffset: number) {
@@ -120,20 +191,20 @@ export default function Index() {
             name: pokemon.name,
             image: details.sprites.front_default,
             imageBack: details.sprites.back_default,
+            shinyImage: details.sprites.front_shiny,
+            shinyImageBack: details.sprites.back_shiny,
             types: details.types,
           };
         })
       );
       
       setPokes(prev => {
-        // Filter out duplicates by checking if pokemon name already exists
         const existingNames = new Set(prev.map(p => p.name));
         const newPokemon = detailedPokemons.filter(p => !existingNames.has(p.name));
         return [...prev, ...newPokemon];
       });
       setOffset(currentOffset + ITEMS_PER_PAGE);
       
-      // Check if we've reached the end (there are 1025+ Pokémon total)
       if (data.next === null) {
         setHasMore(false);
       }
@@ -148,7 +219,6 @@ export default function Index() {
   const handleScroll = (event: any) => {
     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
     
-    // Check if we have valid measurements
     if (!layoutMeasurement || !contentOffset || !contentSize) return;
     
     const paddingToBottom = 100;
@@ -159,21 +229,74 @@ export default function Index() {
     }
   };
 
-  // Display search results if searching, otherwise show all loaded pokemon
   const displayedPokemon = searchQuery.trim() ? searchResults : pokemon;
+
+  // Calculate stats
+  const caughtNormal = Object.values(caughtPokemon).filter(p => p.normal).length;
+  const caughtShiny = Object.values(caughtPokemon).filter(p => p.shiny).length;
 
   return (
     <View style={{ flex: 1 }}>
+      {/* Toggle Checklist Button */}
+      <View style={styles.topBar}>
+        <TouchableOpacity 
+          style={styles.toggleButton}
+          onPress={() => setShowChecklist(!showChecklist)}
+        >
+          <Text style={styles.toggleButtonText}>
+            {showChecklist ? '📊 Hide Checklist' : '📊 Show Checklist'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
           placeholder="Search Pokémon by name..."
           value={searchQuery}
           onChangeText={handleSearchChange}
+          onFocus={() => setIsSearchFocused(true)}
+          onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
           autoCapitalize="none"
           autoCorrect={false}
+          onSubmitEditing={() => searchPokemon(searchQuery)}
         />
+        
+        {/* Search Suggestions Dropdown */}
+        {suggestions.length > 0 && isSearchFocused && (
+          <View style={styles.suggestionsContainer}>
+            {suggestions.map((suggestion) => (
+              <TouchableOpacity
+                key={suggestion}
+                style={styles.suggestionItem}
+                onPress={() => selectSuggestion(suggestion)}
+              >
+                <Text style={styles.suggestionText}>{suggestion}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </View>
+
+      {/* Checklist Summary - Toggle visibility */}
+      {showChecklist && (
+        <View style={styles.checklistSummary}>
+          <Text style={styles.summaryTitle}>My Collection</Text>
+          <View style={styles.summaryStats}>
+            <View style={styles.summaryRow}>
+             
+              <Text style={styles.summaryText}>{caughtNormal} Normal</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              
+              <Text style={styles.summaryText}>{caughtShiny} Shiny</Text>
+            </View>
+          </View>
+          <Text style={styles.summaryTotal}>
+            Total: {caughtNormal + caughtShiny} caught
+          </Text>
+        </View>
+      )}
       
       <ScrollView
         contentContainerStyle={{
@@ -186,29 +309,69 @@ export default function Index() {
         {displayedPokemon.length > 0 ? (
           <>
             {displayedPokemon.map((pokemo) => (
-              <Link 
+              <View 
                 key={pokemo.name}
-                href={{ pathname: "/details", params: { name: pokemo.name } }}
                 style={{
                   backgroundColor: `${colorsByType[pokemo.types[0].type.name]}30`,
                   padding: 20,
                   borderRadius: 20,
-                  margin:"auto",
                 }}
               >
-                <View>
-                  <Text style={styles.name}>{pokemo.name}</Text>
-                  <View style={{  
-                    flexDirection: "row",
-                  }}>
-                    <Image
-                      source={{ uri: pokemo.image }}
-                      style={{ width: 150, height: 150 }}
-                    />
-                   
+                <Link 
+                  href={{ pathname: "/details", params: { name: pokemo.name } }}
+                  style={{ flex: 1 }}
+                >
+                  <View>
+                    <Text style={styles.name}>{pokemo.name}</Text>
+                    <View style={{ flexDirection: "row", justifyContent: "center" }}>
+                      <Image
+                        source={{ uri: showShiny[pokemo.name] ? pokemo.shinyImage : pokemo.image }}
+                        style={{ width: 150, height: 150 }}
+                      />
+                    </View>
+                  </View>
+                </Link>
+
+                {/* Checklist Controls */}
+                <View style={styles.checklistContainer}>
+                  <TouchableOpacity 
+                    style={styles.shinyButton}
+                    onPress={() => toggleShiny(pokemo.name)}
+                  >
+                    <Text style={styles.shinyButtonText}>
+                      {showShiny[pokemo.name] ? 'Showing Shiny' : 'Show Shiny'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <View style={styles.checkboxRow}>
+                    <TouchableOpacity 
+                      style={styles.checkbox}
+                      onPress={() => toggleCaught(pokemo.name, 'normal')}
+                    >
+                      <View style={[
+                        styles.checkboxInner,
+                        caughtPokemon[pokemo.name]?.normal && styles.checkboxChecked
+                      ]}>
+                        {caughtPokemon[pokemo.name]?.normal && <Text style={styles.checkmark}>✓</Text>}
+                      </View>
+                      <Text style={styles.checkboxLabel}>Caught Normal</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={styles.checkbox}
+                      onPress={() => toggleCaught(pokemo.name, 'shiny')}
+                    >
+                      <View style={[
+                        styles.checkboxInner,
+                        caughtPokemon[pokemo.name]?.shiny && styles.checkboxCheckedShiny
+                      ]}>
+                        {caughtPokemon[pokemo.name]?.shiny && <Text style={styles.checkmark}>✓</Text>}
+                      </View>
+                      <Text style={styles.checkboxLabel}>Caught Shiny</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
-              </Link>
+              </View>
             ))}
             
             {loading && !searchQuery && (
@@ -235,10 +398,33 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create({
+  topBar: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 5,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  toggleButton: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  toggleButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
   searchContainer: {
     padding: 16,
     paddingBottom: 8,
     backgroundColor: '#fff',
+    position: 'relative',
+    zIndex: 100,
   },
   searchInput: {
     height: 50,
@@ -249,16 +435,82 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#f5f5f5',
   },
+  suggestionsContainer: {
+    position: 'absolute',
+    top: 70,
+    left: 16,
+    right: 16,
+    backgroundColor: 'white',
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    maxHeight: 200,
+    zIndex: 1001,
+  },
+  suggestionItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  suggestionText: {
+    fontSize: 16,
+    textTransform: 'capitalize',
+    color: '#333',
+  },
+  checklistSummary: {
+    position: 'absolute',
+    top: 130,
+    right: 16,
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    zIndex: 999,
+    minWidth: 140,
+  },
+  summaryTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+    color: '#333',
+  },
+  summaryStats: {
+    gap: 6,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  summaryIcon: {
+    fontSize: 16,
+  },
+  summaryText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#555',
+  },
+  summaryTotal: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    fontSize: 12,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    color: '#4CAF50',
+  },
   name: {
     fontSize: 35,
     fontWeight: 'bold',
-    textAlign: 'center',
-    textTransform: 'capitalize',
-  },
-  type: {
-    fontSize: 25,
-    fontWeight: 'bold',
-    color: 'grey',
     textAlign: 'center',
     textTransform: 'capitalize',
   },
@@ -283,5 +535,62 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: 'grey',
     padding: 20,
-  }
+  },
+  checklistContainer: {
+    marginTop: 15,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
+  },
+  shinyButton: {
+    backgroundColor: '#FFD700',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  shinyButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    gap: 10,
+  },
+  checkbox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  checkboxInner: {
+    width: 28,
+    height: 28,
+    borderWidth: 2,
+    borderColor: '#666',
+    borderRadius: 6,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#4CAF50',
+  },
+  checkboxCheckedShiny: {
+    backgroundColor: '#FFD700',
+    borderColor: '#FFD700',
+  },
+  checkmark: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  checkboxLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+  },
 })

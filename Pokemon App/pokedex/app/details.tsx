@@ -69,19 +69,7 @@ export default function Details() {
     }}
     >
        <Text style={styles.name}>#{pokemon.id} {pokemon.name} </Text>
-       <View style={styles.textContainer}><Text style={styles.shiny}>Shiny Form:</Text>
-       <Text style={styles.normal}>Normal Form:</Text>
-       </View>
-       
        <View style={styles.imageContainer}>
-        <Image 
-        source={{uri:pokemon.sprites.front_shiny}}
-        style={styles.image}
-        />
-         <Image 
-        source={{uri:pokemon.sprites.back_shiny}}
-        style={styles.image}
-        />
          <Image 
            source={{ uri: pokemon.sprites.front_default }} 
            style={styles.image} 

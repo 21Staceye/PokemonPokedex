@@ -319,14 +319,14 @@ export default function Index() {
               >
                 <Link 
                   href={{ pathname: "/details", params: { name: pokemo.name } }}
-                  style={{ flex: 1 }}
+                  style={{ flex: 1}}
                 >
-                  <View>
+                  <View style={styles.pokemonNameContainer}>
                     <Text style={styles.name}>{pokemo.name}</Text>
-                    <View style={{ flexDirection: "row", justifyContent: "center" }}>
+                    <View style={styles.pokemonNameContainer}>
                       <Image
                         source={{ uri: showShiny[pokemo.name] ? pokemo.shinyImage : pokemo.image }}
-                        style={{ width: 150, height: 150 }}
+                        style={{ width: 150, height: 150, display: "flex", alignItems: "center" }}
                       />
                     </View>
                   </View>
@@ -354,7 +354,7 @@ export default function Index() {
                       ]}>
                         {caughtPokemon[pokemo.name]?.normal && <Text style={styles.checkmark}>✓</Text>}
                       </View>
-                      <Text style={styles.checkboxLabel}>Caught Normal</Text>
+                      <Text numberOfLines = {1} style={styles.checkboxLabel}>Caught Normal</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity 
@@ -398,6 +398,13 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create({
+  pokemonNameContainer: {
+   alignItems: "center", 
+   justifyContent: "center", 
+   width: "100%", 
+   paddingVertical: 10, 
+   flexDirection: "column",
+  },
   topBar: {
     backgroundColor: '#fff',
     paddingHorizontal: 16,
@@ -543,11 +550,15 @@ const styles = StyleSheet.create({
     borderTopColor: '#ddd',
   },
   shinyButton: {
+    
     backgroundColor: '#FFD700',
     padding: 10,
-    borderRadius: 10,
+    borderRadius: 5,
     marginBottom: 10,
     alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+   alignSelf:'center',
   },
   shinyButtonText: {
     fontSize: 16,
@@ -556,14 +567,15 @@ const styles = StyleSheet.create({
   },
   checkboxRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    gap: 10,
+    justifyContent: 'space-evenly',
+    width: '100%',
+   
   },
   checkbox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    flex: 1,
+    flexShrink:1,
   },
   checkboxInner: {
     width: 28,
@@ -591,6 +603,12 @@ const styles = StyleSheet.create({
   checkboxLabel: {
     fontSize: 14,
     fontWeight: '600',
-    flex: 1,
+    
+    textAlign: 'center',
+    
+    flexShrink: 1,
+    padding:'auto',
+  
+    
   },
 })

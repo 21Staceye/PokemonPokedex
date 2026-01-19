@@ -3,20 +3,19 @@ export default function RootLayout() {
   return <Stack>
     <Stack.Screen 
     name="index" 
-    options={{
-    title: "Pokedex",
+  options={{
+    title: "Pokédex",
     headerTitleAlign: 'center',
     headerStyle: {
-      backgroundColor: '#d20303', 
-      
-
+      backgroundColor: '#DC0A2D',
     },
-    headerTintColor: '#000000',
+    headerTintColor: '#FFFFFF',
     headerTitleStyle: {
-      fontWeight: 'bold',
-      fontSize: 22,
+      fontWeight: '700',
+      fontSize: 24,
+     
     },
-    }}
+  }}
       
       />
        <Stack.Screen 
